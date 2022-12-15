@@ -5,11 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
-import androidx.compose.material.TextField
+import androidx.compose.material.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +20,9 @@ import androidx.compose.ui.unit.sp
 import com.example.tip_time.ui.theme.Tip_timeTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -49,11 +50,13 @@ class MainActivity : ComponentActivity() {
 fun TipTimeScreen() {
     var amountInput by remember { mutableStateOf("0") }
     var tipInput by remember { mutableStateOf("") }
+    var roundUp by remember { mutableStateOf(false) }
 
     val amount = amountInput.toDoubleOrNull() ?: 0.0   //null이면 0.0으로 ?: Elvis 연산자
     val tipPercent = tipInput.toDoubleOrNull() ?: 0.0
-    val tip = calculateTip(amount, tipPercent)
+    val tip = calculateTip(amount, tipPercent, roundUp)
 
+    val focusManager = LocalFocusManager.current
 
     Column(
         modifier = Modifier.padding(32.dp),
@@ -71,6 +74,9 @@ fun TipTimeScreen() {
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Next
             ),
+            keyboardActions = KeyboardActions(
+                onNext = { focusManager.moveFocus(FocusDirection.Down)}
+            ),
             value = amountInput,
             onValueChange = { amountInput = it}
         )
@@ -80,9 +86,15 @@ fun TipTimeScreen() {
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Done
             ),
+            keyboardActions = KeyboardActions(
+                onDone = { focusManager.clearFocus()}
+            ),
             value = tipInput,
             onValueChange = { tipInput = it}
         )
+        RoundTheTipRow(
+            roundUp = roundUp,
+            onRoundUpChanged = { roundUp = it })
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = stringResource(id = R.string.tip_amount, tip),
@@ -97,6 +109,7 @@ fun TipTimeScreen() {
 fun EditNumberField(
     @StringRes label: Int,            //label 매개변수가 문자열 리소스 참조여야 함을 나타내기 위해
     keyboardOptions: KeyboardOptions,
+    keyboardActions: KeyboardActions,
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -107,16 +120,48 @@ fun EditNumberField(
         label = { Text(text = stringResource(id = label))},
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,    //여러 줄에서 가로로 스크롤 가능한 하나의 줄로 압축됨.
-        keyboardOptions = keyboardOptions
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions
     )
 }
 
 private fun calculateTip(
     amount: Double,
-    tipPercent: Double = 15.0
+    tipPercent: Double = 15.0,
+    roundUp: Boolean
 ): String {                        // 형식이 지정된 문자열로 반환하게 됨.
-    val tip = tipPercent / 100 * amount
+    var tip = tipPercent / 100 * amount
+    if (roundUp)
+        tip = kotlin.math.ceil(tip)
     return NumberFormat.getCurrencyInstance().format(tip)   // 숫자혀식 지정클래스
+}
+
+@Composable
+fun RoundTheTipRow(
+    roundUp: Boolean,
+    onRoundUpChanged: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .size(48.dp),
+        verticalAlignment = Alignment.CenterVertically  //정렬 가운데
+    ) {
+        Text(
+            text = stringResource(id = R.string.round_up_tip)
+        )
+        Switch(
+            modifier = modifier
+                .fillMaxWidth()
+                .wrapContentWidth(Alignment.End),
+            checked = roundUp,
+            onCheckedChange = onRoundUpChanged,
+            colors = SwitchDefaults.colors(
+                uncheckedThumbColor = Color.DarkGray
+            )
+        )
+    }
 }
 
 @Preview(showBackground = true)
